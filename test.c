@@ -88,7 +88,7 @@ int main(int argc, char **argv)
         } 
     } //handle the options
     
-    char atom_arr[31] = "ochoohnchhoonchoonhhonccohchhon";  
+    char atom_arr[30] = "OCHOOHNCHHOONCHOONHHONCOHCHHON";  
 
     //init tubes
     pthread_t tube_tid;
@@ -105,6 +105,7 @@ int main(int argc, char **argv)
     pthread_create(&tube_tid, NULL, tube_thread, (void*)&tube[2]);
     
     srand(time(0));
+    printf("GENERATION_RATE: %d\n",gen_time);
     //create atoms
     while(c_cnt > 0 || h_cnt > 0 || o_cnt  > 0 || n_cnt > 0 )
     {
@@ -114,31 +115,30 @@ int main(int argc, char **argv)
         if(newAtom == 'x'){
             printf("Invalid atom type\n");
         }
-        else if(newAtom == 'c' && c_cnt > 0){
+        else if(newAtom == 'C' && c_cnt > 0){
             c_cnt--;
             valid = true;
         }
-        else if(newAtom == 'h' && h_cnt > 0){
+        else if(newAtom == 'H' && h_cnt > 0){
             h_cnt--;
             valid = true;
         }
-        else if(newAtom == 'o' && o_cnt > 0){
+        else if(newAtom == 'O' && o_cnt > 0){
             o_cnt--;
             valid = true;
         }
-        else if(newAtom == 'n' && n_cnt > 0){
+        else if(newAtom == 'N' && n_cnt > 0){
             n_cnt--;
             valid = true;
         }
         if(valid == false) continue;
         pthread_t atomThread;
         atom_t atom;
-        atom.atomID = total_atom++;
+        atom.atomID = ++total_atom;
         atom.atomType = newAtom;
-        printf("%c %d\n",atom.atomType, atom.atomID);
+        printf("%c with ID:%d created.\n",atom.atomType, atom.atomID);
         pthread_create(&atomThread, NULL, &atom_thread, (void*) &atom);
         usleep(getSleepTime(gen_time) * 1e7);
-
         pthread_mutex_lock(&informataion_mutex);
         if(information.tubeID != 0)
         {   
@@ -152,12 +152,11 @@ int main(int argc, char **argv)
             case NH3_MOLECULE_TYPE: mol = "NH3"; break;
             default: mol = "inv";break;
             }
-            printf("********  %s is created in tube %d.\n", mol, information.tubeID);
+            printf("%s is created in tube %d.\n", mol, information.tubeID);
             information.tubeID = 0;
         }
         pthread_mutex_unlock(&informataion_mutex);
     }
-
 }
 
 double getSleepTime(int lambda)
@@ -170,10 +169,10 @@ char selectAtom(){
     int atom =  rand() % 4;
     switch (atom)
     {
-    case 0: return 'c';break;
-    case 1: return 'h';break;
-    case 2: return 'o';break;
-    case 3: return 'n';break;
+    case 0: return 'C';break;
+    case 1: return 'H';break;
+    case 2: return 'O';break;
+    case 3: return 'N';break;
     default: return 'x'; break;
     }
 }   
@@ -182,10 +181,10 @@ void increaseAtomCount_tube(char atom, tube_t * tube)
 {
     switch (atom)
     {
-    case 'c': tube->spilledAtomCnt.C_cnt++; break;
-    case 'h': tube->spilledAtomCnt.H_cnt++; break;
-    case 'o': tube->spilledAtomCnt.O_cnt++; break;
-    case 'n': tube->spilledAtomCnt.N_cnt++; break;
+    case 'C': tube->spilledAtomCnt.C_cnt++; break;
+    case 'H': tube->spilledAtomCnt.H_cnt++; break;
+    case 'O': tube->spilledAtomCnt.O_cnt++; break;
+    case 'N': tube->spilledAtomCnt.N_cnt++; break;
     default: break;
     }
 }
@@ -200,10 +199,10 @@ int findProperTube(char atom)
     int length;
     switch (atom)
     {
-        case 'c': properMoleculeArr = c_proper; length = sizeof(c_proper)/ sizeof(int); break;
-        case 'h': properMoleculeArr = h_proper; length = sizeof(h_proper)/ sizeof(int); break;
-        case 'o': properMoleculeArr = o_proper; length = sizeof(o_proper)/ sizeof(int); break;
-        case 'n': properMoleculeArr = n_proper; length = sizeof(n_proper)/ sizeof(int); break;
+        case 'C': properMoleculeArr = c_proper; length = sizeof(c_proper)/ sizeof(int); break;
+        case 'H': properMoleculeArr = h_proper; length = sizeof(h_proper)/ sizeof(int); break;
+        case 'O': properMoleculeArr = o_proper; length = sizeof(o_proper)/ sizeof(int); break;
+        case 'N': properMoleculeArr = n_proper; length = sizeof(n_proper)/ sizeof(int); break;
         default: return -1; break;
     }
     
@@ -220,18 +219,18 @@ int findProperTube(char atom)
             //printf("tube 0 mol type %d\n", tube[0].moleculeType);
             if(tube[i].moleculeType & (1 << properMoleculeArr[j]))
             {
-                if(atom == 'n' && tube[i].spilledAtomCnt.N_cnt == 1)
+                if(atom == 'N' && tube[i].spilledAtomCnt.N_cnt == 1)
                     continue;
-                if(atom == 'c' && tube[i].spilledAtomCnt.C_cnt == 1)
+                if(atom == 'C' && tube[i].spilledAtomCnt.C_cnt == 1)
                     continue;
     
-                if(atom == 'h'){
+                if(atom == 'H'){
                     if(tube[i].moleculeType == (1 << H20_MOLECULE_TYPE) && tube[i].spilledAtomCnt.H_cnt == 2)
                         continue;
                     else if(tube[i].moleculeType == (1 << NH3_MOLECULE_TYPE) && tube[i].spilledAtomCnt.H_cnt == 3)
                         continue;
                 }
-                if(atom == 'o'){
+                if(atom == 'O'){
                     if(tube[i].moleculeType == (1 << CO2_MOLECULE_TYPE) && tube[i].spilledAtomCnt.O_cnt == 2)
                         continue;
                     else if(tube[i].moleculeType == (1 << H20_MOLECULE_TYPE) && tube[i].spilledAtomCnt.O_cnt == 1)
@@ -278,13 +277,11 @@ void * atom_thread(void *args)
         tube[0].firstSpilled = atom->atomType;
         tube[0].tubeTS = atom->atomID;
         increaseAtomCount_tube(atom->atomType, &tube[0]);
-        printf("%d id %c added to tube %d\n", atom->atomID, atom->atomType, tube[0].tubeID); // debug
-
+       
     }
     else
     {
         int properTubeIndex = findProperTube(atom->atomType);
-        printf("%d id %c added to tube %d\n", atom->atomID, atom->atomType, tube[properTubeIndex].tubeID); // debug
         if(properTubeIndex != -1){
             if(tube[properTubeIndex].firstSpilled =='x')
             {
