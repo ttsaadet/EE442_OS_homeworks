@@ -45,6 +45,11 @@ typedef struct
 /********************************/
 
 /* GLOBAL VARIABLES */
+pthread_cond_t CO2_cond;
+pthread_cond_t H20_cond;
+pthread_cond_t NO2_cond;
+pthread_cond_t NH3_cond;
+
 pthread_mutex_t mutex;
 pthread_mutex_t informataion_mutex;
 information_t information;
@@ -110,6 +115,8 @@ int main(int argc, char **argv)
     while(c_cnt > 0 || h_cnt > 0 || o_cnt  > 0 || n_cnt > 0 )
     {
         //char newAtom = selectAtom();
+        //printf("sleep time %f \n",getSleepTime(gen_time) * 1000);
+        //continue;
         char newAtom = atom_arr[total_atom];
         bool valid = false;
         if(newAtom == 'x'){
@@ -138,7 +145,7 @@ int main(int argc, char **argv)
         atom.atomType = newAtom;
         printf("%c with ID:%d created.\n",atom.atomType, atom.atomID);
         pthread_create(&atomThread, NULL, &atom_thread, (void*) &atom);
-        usleep(getSleepTime(gen_time) * 1e7);
+        usleep(getSleepTime(gen_time) * 5e6);
         pthread_mutex_lock(&informataion_mutex);
         if(information.tubeID != 0)
         {   
@@ -187,6 +194,13 @@ void increaseAtomCount_tube(char atom, tube_t * tube)
     case 'N': tube->spilledAtomCnt.N_cnt++; break;
     default: break;
     }
+}
+void C(){
+    
+    pthread_cond_wait(&CO2_cond, &mutex);
+
+
+
 }
 int findProperTube(char atom)
 {
@@ -284,7 +298,7 @@ void * atom_thread(void *args)
         int properTubeIndex = findProperTube(atom->atomType);
         if(properTubeIndex != -1){
             if(tube[properTubeIndex].firstSpilled =='x')
-            {
+            {                    
                 tube[properTubeIndex].firstSpilled = atom->atomType;
                 tube[properTubeIndex].tubeTS = atom->atomID;
             }
@@ -294,7 +308,6 @@ void * atom_thread(void *args)
             printf("%c with ID:%d wasted\n", atom->atomType, atom->atomID);
         }
     }
-    
     pthread_mutex_unlock(&mutex);
 }
 

@@ -56,7 +56,8 @@ sem_t sem_CO2;
 sem_t sem_NO2;
 sem_t sem_NH3;
 sem_t sem_info;
-
+sem_t sem_atom_sync;
+int atomID;
 /********************/
 double getSleepTime(int lambda);
 char selectAtom();
@@ -88,6 +89,7 @@ int main(int argc, char **argv)
     sem_init(&sem_NO2, 0, 0);
     sem_init(&sem_NH3, 0, 0);
     sem_init(&sem_info, 0, 1);
+    sem_init(&sem_atom_sync, 0, 1);
     /*
     -c: The total number of carbon atoms to be generated (default 20)
     -h: The total number of hydrogen atoms to be generated (default 20)
@@ -128,44 +130,44 @@ int main(int argc, char **argv)
     pthread_create(&compose_tid, NULL, &compose_NH3, NULL);
     pthread_create(&compose_tid, NULL, &compose_NO2, NULL);
 
+    int atom_id[10000];
     while(c_cnt > 0 || h_cnt > 0 || o_cnt  > 0 || n_cnt > 0 )
     {
         char newAtom = selectAtom();
         //char newAtom = atom_arr[total_atom];
         bool valid = false;
-
         if(newAtom == 'x'){
             printf("Invalid atom type\n");
+            continue;
         }
-        else if(newAtom == 'C' && c_cnt > 0){
+        
+        atom_id[total_atom] = total_atom + 1;
+       
+        if(newAtom == 'C' && c_cnt > 0){
             c_cnt--;
             valid = true;
-            int id = ++total_atom;
-            pthread_create(&atom_tid, NULL, &produce_C, (void*)&id);
+            pthread_create(&atom_tid, NULL, &produce_C, (void*)&atom_id[total_atom]);
         }
         else if(newAtom == 'H' && h_cnt > 0){
             h_cnt--;
             valid = true;
-            int id = ++total_atom;
-            pthread_create(&atom_tid, NULL, &produce_H, (void*)&id);
+            pthread_create(&atom_tid, NULL, &produce_H, (void*)&atom_id[total_atom]);
         }
         else if(newAtom == 'O' && o_cnt > 0){
             o_cnt--;
             valid = true;
-            int id = ++total_atom;
-            pthread_create(&atom_tid, NULL, &produce_O, (void*)&id);
+            pthread_create(&atom_tid, NULL, &produce_O, (void*)&atom_id[total_atom]);
 
         }
         else if(newAtom == 'N' && n_cnt > 0){
             n_cnt--;
             valid = true;
-            int id = ++total_atom;
-            pthread_create(&atom_tid, NULL, &produce_N, (void*)&id);
+            pthread_create(&atom_tid, NULL, &produce_N, (void*)&atom_id[total_atom]);
 
         }
-
+        total_atom++;
         if(valid == false) continue;
-        usleep(getSleepTime(gen_time) * 1e7);
+        usleep(getSleepTime(gen_time) * 1e6);
         
         sem_wait(&sem_info);
         if(information.tube.moleculeType != 0)
@@ -208,32 +210,46 @@ char selectAtom(){
 
 void * produce_C(void *arg)
 {
-    int atomID = *(int*)arg;
-    printf("C with ID:%d is created.\n", atomID);
+    
+    sem_wait(&sem_atom_sync);
+    
+    printf("C with ID:%d is created.\n", atomID++);
     sem_post(&sem_C);
+    sem_post(&sem_atom_sync);
+    
 }
 
 
 void * produce_H(void *arg)
 {
-    int atomID = *(int*)arg;
-    printf("H with ID:%d is created.\n", atomID);
+    //int atomID = *(int*)arg;
+    sem_wait(&sem_atom_sync);
+    atomID++;
+    printf("H with ID:%d is created.\n", atomID+;
     sem_post(&sem_H);
-}
+    sem_post(&sem_atom_sync);
+    
+}   
 
 void * produce_O(void *arg)
 {
-    int atomID = *(int*)arg;
-    printf("O with ID:%d is created.\n", atomID);
+    //int atomID = *(int*)arg;
+    sem_wait(&sem_atom_sync);
+    printf("O with ID:%d is created.\n", atomID++);
     sem_post(&sem_O);
+    sem_post(&sem_atom_sync);
+    
 }
 
 
 void * produce_N(void *arg)
 {
-    int atomID = *(int*)arg;
-    printf("N with ID:%d is created.\n", atomID);
+    //int atomID = *(int*)arg;
+    sem_wait(&sem_atom_sync);
+    printf("N with ID:%d is created.\n", atomID++);
     sem_post(&sem_N);
+    sem_post(&sem_atom_sync);
+    
 }
 
 void * compose_CO2()
