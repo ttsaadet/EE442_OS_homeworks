@@ -49,14 +49,16 @@ int main()
 {
 
     srand(time(0));
-    getcontext(&threadArray[0].context);
+    
     initializeThread();
     for (int i = 1; i < 6; i++)
     {
         createThread(i, 6);
     }
 
-    runThread();
+    signal(SIGALRM, runThread);
+    alarm(TIMER_INTERVAL);
+    getcontext(&threadArray[0].context);
     while(1);
     return 0;
 }
@@ -117,7 +119,8 @@ int scheduleThread()
         return -1;
     int nextThreadIndex = rand() % readyThreadCount;
     nextThreadIndex = readyThreadsIndexArr[nextThreadIndex];
-
+    threadArray[nextThreadIndex].state = RUNNING;
+    
     return nextThreadIndex;
 }
 
@@ -184,15 +187,21 @@ void printThreadsStatus()
 
 void runThread()
 {
-    getcontext(&threadArray[0].context);
-    signal(SIGALRM, runThread);
-    alarm(TIMER_INTERVAL);
-    printThreadsStatus();
+    //getcontext(&threadArray[0].context);
+    for(int i = 1; i <6 ; i++){
+        if(threadArray[i].state != FINISHED){
+            signal(SIGALRM, runThread);
+            alarm(TIMER_INTERVAL);
+            break;
+        }
+    }
+        
     io_work();
-    
+
     int nextThreadIndex = scheduleThread();
-    if(nextThreadIndex != -1 ){
-        threadArray[nextThreadIndex].state = RUNNING;
+    printThreadsStatus();
+    if(nextThreadIndex != -1 ){    
+        
         setcontext(&threadArray[nextThreadIndex].context);
     }
     else{
@@ -217,8 +226,7 @@ void thread_func(int n)
             break;
         }
     }
-    printf("running thread%d",threadIndex);
-
+    
     while (i < n)
     {
         usleep(495000);
@@ -238,10 +246,11 @@ void thread_func(int n)
         case 5:printf("\t\t\t\t"); break;
         default:break;
         }
-        printf("%d %d\n", ++i, n);
+        printf("%d\n", ++i);
         getcontext(&threadArray[threadIndex].context);
-        printf("i: %d n:%d\n", i, n);
+      
     }
+    exitThread(threadIndex);
 }
 
 void io_work()
