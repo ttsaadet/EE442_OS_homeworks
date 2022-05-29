@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>    // time()
 
 /*DEFINES*/
 #define CPU_BURST_STOP_IND 2
@@ -32,13 +33,11 @@ typedef struct
 } ThreadInfo_t;
 
 /*GLOBAL DECLERATIONS */
-static int critical = 0;
 ThreadInfo_t threadArray[6];
-int counter = 0;
 
 /* function declerations */
 void initializeThread();
-void createThread(int threadIndex, int n);
+int createThread(int threadIndex, int n);
 void runThread();
 void exitThread();
 int scheduleThread();
@@ -47,14 +46,10 @@ void thread_func(int n);
 
 int main()
 {
-
+    printf("SRTF Scheduler\n");
     srand(time(0));
     
     initializeThread();
-    for (int i = 1; i < 6; i++)
-    {
-        createThread(i, 6);
-    }
 
     signal(SIGALRM, runThread);
     alarm(TIMER_INTERVAL);
@@ -75,7 +70,7 @@ void initializeThread()
     fp = fopen("input.txt", "r");
     if (fp == NULL)
     {
-        printf("Error opening file!\n");
+        printf("Error opening input file!\n");
         exit(1);
     }
     
@@ -85,7 +80,6 @@ void initializeThread()
             continue;
         }
         index++;
-        printf("%d index", index);
         if(index >= 6){
             printf("invalid number of line, %d ..",index);
         }
@@ -98,7 +92,6 @@ void initializeThread()
             if(tokens != NULL)
                 inputs[tokenIndex++] = atoi(tokens);
             }
-        printf("\n");
         n = inputs[0];
         threadArray[index].state = EMPTY;
         threadArray[index].cpuburst[0] = inputs[1];
@@ -107,19 +100,24 @@ void initializeThread()
         threadArray[index].ioburst[0] = inputs[4];
         threadArray[index].ioburst[1] = inputs[5];
         threadArray[index].ioburst[2] = inputs[6];
-        printf("%d %d %d %d %d %d %d\n",n,threadArray[index].cpuburst[0],threadArray[index].cpuburst[1],threadArray[index].cpuburst[2],threadArray[index].ioburst[0],threadArray[index].ioburst[1],threadArray[index].ioburst[2]);
+        printf("thread %d: n:%d cp1:%d cp2: %d cp3:%d io1:%d io2:%d io3:%d\n",index,n,threadArray[index].cpuburst[0],threadArray[index].cpuburst[1],threadArray[index].cpuburst[2],threadArray[index].ioburst[0],threadArray[index].ioburst[1],threadArray[index].ioburst[2]);
         createThread(index, n);
        }
     
     printf("T1\tT2\tT3\tT4\tT5\n");
 }
 
-void createThread(int threadIndex, int n)
+
+int createThread(int threadIndex, int n)
 {
     enum
     {
         MAIN_CONTEXT
     };
+    if(threadArray[threadIndex].state != EMPTY){
+        printf("Thread creation failed, target thread index is not empty\n");
+        return -1;
+    }
     getcontext(&threadArray[threadIndex].context);
     threadArray[threadIndex].context.uc_link = &threadArray[0].context;
     threadArray[threadIndex].context.uc_link = &threadArray[MAIN_CONTEXT].context;
@@ -136,7 +134,7 @@ int scheduleThread()
     int nextThreadIndex = 0;
     for (int i = 1; i < 6; i++)
     {
-        if (threadArray[i].state == READY || threadArray[i].state == RUNNING)
+        if (threadArray[i].state == READY)
         {
             int cpuBurstCycle = threadArray[i].cpuburst_cycle;
             if(threadArray[i].cpuburst[cpuBurstCycle] < shortestReaminingTime)
@@ -146,6 +144,21 @@ int scheduleThread()
             }
         }
     }
+    for(int i = 1; i< 6; i++ )
+    {
+        if(threadArray[i].state == RUNNING){
+            int prevRunningCpuCycle = threadArray[i].cpuburst_cycle;
+            if(threadArray[i].cpuburst[prevRunningCpuCycle] < shortestReaminingTime)
+            {
+                nextThreadIndex = i;
+                break;
+            }
+            else{
+                threadArray[i].state = READY;
+            }
+        }
+    }
+   
     if(nextThreadIndex == 0) 
         return -1;
     
@@ -241,7 +254,9 @@ void runThread()
 
 void exitThread(int thread_id)
 {
-    free(threadArray[thread_id].context.uc_stack.ss_sp);   
+    free(threadArray[thread_id].context.uc_stack.ss_sp); 
+    //i did not update status of the thread as empty here beacuse if I did, thread status print function would not print
+    //thread as finished
 }
 
 void thread_func(int n)
@@ -278,7 +293,6 @@ void thread_func(int n)
         }
         printf("%d\n", ++i);
         getcontext(&threadArray[threadIndex].context);
-      
     }
     exitThread(threadIndex);
 }
@@ -290,7 +304,7 @@ void io_work()
         if (threadArray[i].state == IO)
         {
             int bursttime = threadArray[i].ioburst_cycle;
-            threadArray[i].ioburst[bursttime]--;
+            threadArray[i].ioburst[bursttime]-=2;
             if (threadArray[i].ioburst[bursttime] <= 0)
             {
                 if (threadArray[i].ioburst_cycle == IO_BURST_STOP_IND)

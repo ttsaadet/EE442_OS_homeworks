@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>    // time()
 
 /*DEFINES*/
 #define CPU_BURST_STOP_IND 2
@@ -25,9 +26,9 @@ typedef struct
 {
     ucontext_t context;
     int state;
-    int ioburst_time;
+    int ioburst_cycle;
     int ioburst[3];
-    int cpuburst_time;
+    int cpuburst_cycle;
     int cpuburst[3];
 } ThreadInfo_t;
 
@@ -38,23 +39,19 @@ int counter = 0;
 
 /* function declerations */
 void initializeThread();
-void createThread(int threadIndex, int n);
+int createThread(int threadIndex, int n);
 void runThread();
 void exitThread();
 int scheduleThread();
 void io_work();
 void thread_func(int n);
 
-int main()
+int main() 
 {
-
+    printf("Random Scheduler\n");
     srand(time(0));
     
     initializeThread();
-    for (int i = 1; i < 6; i++)
-    {
-        createThread(i, 6);
-    }
 
     signal(SIGALRM, runThread);
     alarm(TIMER_INTERVAL);
@@ -63,33 +60,67 @@ int main()
     return 0;
 }
 
+// read input file and initilze threads
 void initializeThread()
 {
 
-    for (int i = 0; i < 6; i++)
+    int n = 0, index = 0;
+    FILE *fp;
+    char * line = NULL; /* not ISO 90 compatible */
+    size_t len =0;
+    size_t read;
+    char * tokens;
+    fp = fopen("input.txt", "r");
+    if (fp == NULL)
     {
-        threadArray[i].state = EMPTY;
-
-        threadArray[i].cpuburst_time = 0;
-        threadArray[i].ioburst_time = 0;
-        // TODO: TAKE INPUT FROM USER FOR BURST COUTS
-        threadArray[i].cpuburst[0] = 2;
-        threadArray[i].ioburst[0] = 2;
-        threadArray[i].cpuburst[1] = 2;
-        threadArray[i].ioburst[1] = 2;
-
-        threadArray[i].cpuburst[2] = 2;
-        threadArray[i].ioburst[2] = 2;
+        printf("Error opening input file!\n");
+        exit(1);
     }
+    
+    int inputs[7];
+    while ((read = getline(&line, &len, fp)) != -1) {
+        if(line[0] == '#'){
+            continue;
+        }
+        index++;
+        if(index >= 6){
+            printf("invalid number of line, %d ..",index);
+        }
+        int tokenIndex = 0;
+        char delim = ' ';
+        tokens = strtok(line, &delim);
+        inputs[tokenIndex++] = atoi(tokens);
+        while(tokens != NULL){
+            tokens = strtok(NULL, &delim);
+            if(tokens != NULL)
+                inputs[tokenIndex++] = atoi(tokens);
+            }
+        
+        n = inputs[0];
+        threadArray[index].state = EMPTY;
+        threadArray[index].cpuburst[0] = inputs[1];
+        threadArray[index].cpuburst[1] = inputs[2];
+        threadArray[index].cpuburst[2] = inputs[3];
+        threadArray[index].ioburst[0] = inputs[4];
+        threadArray[index].ioburst[1] = inputs[5];
+        threadArray[index].ioburst[2] = inputs[6];
+        printf("thread %d: n:%d cp1:%d cp2: %d cp3:%d io1:%d io2:%d io3:%d\n",index,n,threadArray[index].cpuburst[0],threadArray[index].cpuburst[1],threadArray[index].cpuburst[2],threadArray[index].ioburst[0],threadArray[index].ioburst[1],threadArray[index].ioburst[2]);
+        createThread(index, n);
+       }
+    
     printf("T1\tT2\tT3\tT4\tT5\n");
 }
 
-void createThread(int threadIndex, int n)
+int createThread(int threadIndex, int n)
 {
     enum
     {
         MAIN_CONTEXT
     };
+    if(threadArray[threadIndex].state != EMPTY){
+        printf("Thread creation failed, target thread index is not empty\n");
+        return -1;
+    }
     getcontext(&threadArray[threadIndex].context);
     threadArray[threadIndex].context.uc_link = &threadArray[0].context;
     threadArray[threadIndex].context.uc_link = &threadArray[MAIN_CONTEXT].context;
@@ -124,12 +155,13 @@ int scheduleThread()
     return nextThreadIndex;
 }
 
+//for debugging purpose
 void log_thread_status()
 {
     FILE *logfd = fopen("log.txt", "a");
     for (int i = 1; i < 6; i++)
     {
-        fprintf(logfd, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", i, threadArray[i].state, threadArray[i].cpuburst_time, threadArray[i].ioburst_time, threadArray[i].cpuburst[0],
+        fprintf(logfd, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", i, threadArray[i].state, threadArray[i].cpuburst_cycle, threadArray[i].ioburst_cycle, threadArray[i].cpuburst[0],
                 threadArray[i].cpuburst[1],
                 threadArray[i].cpuburst[2],
                 threadArray[i].ioburst[0],
@@ -140,6 +172,7 @@ void log_thread_status()
     fclose(logfd);
 }
 
+//print thread status
 void printThreadsStatus()
 {
     log_thread_status();
@@ -196,10 +229,11 @@ void runThread()
         }
     }
         
-    io_work();
+    
 
     int nextThreadIndex = scheduleThread();
     printThreadsStatus();
+    io_work();
     if(nextThreadIndex != -1 ){    
         
         setcontext(&threadArray[nextThreadIndex].context);
@@ -230,12 +264,12 @@ void thread_func(int n)
     while (i < n)
     {
         usleep(495000);
-        int bursttime = threadArray[threadIndex].cpuburst_time;
+        int bursttime = threadArray[threadIndex].cpuburst_cycle;
         threadArray[threadIndex].cpuburst[bursttime] = threadArray[threadIndex].cpuburst[bursttime] - 1;
         if (threadArray[threadIndex].cpuburst[bursttime] == 0)
         {
             threadArray[threadIndex].state = IO;
-            threadArray[threadIndex].cpuburst_time++;
+            threadArray[threadIndex].cpuburst_cycle++;
         }
         switch (threadIndex)
         {
@@ -248,7 +282,6 @@ void thread_func(int n)
         }
         printf("%d\n", ++i);
         getcontext(&threadArray[threadIndex].context);
-      
     }
     exitThread(threadIndex);
 }
@@ -259,18 +292,18 @@ void io_work()
     {
         if (threadArray[i].state == IO)
         {
-            int bursttime = threadArray[i].ioburst_time;
-            threadArray[i].ioburst[bursttime]--;
+            int bursttime = threadArray[i].ioburst_cycle;
+            threadArray[i].ioburst[bursttime]-=2;
             if (threadArray[i].ioburst[bursttime] <= 0)
             {
-                if (threadArray[i].ioburst_time == IO_BURST_STOP_IND)
+                if (threadArray[i].ioburst_cycle == IO_BURST_STOP_IND)
                 {
                     threadArray[i].state = FINISHED;
                 }
                 else
                 {
                     threadArray[i].state = READY;
-                    threadArray[i].ioburst_time++;
+                    threadArray[i].ioburst_cycle++;
                 }
             }
         }
