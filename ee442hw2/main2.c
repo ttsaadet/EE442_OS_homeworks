@@ -9,7 +9,7 @@
 /*DEFINES*/
 #define CPU_BURST_STOP_IND 2
 #define IO_BURST_STOP_IND 2
-#define TIMER_INTERVAL 1
+#define TIMER_INTERVAL 2
 #define STACK_SIZE 8192
 
 /*TYPEDEF DECLERATIONS*/
@@ -274,7 +274,7 @@ void thread_func(int n)
     
     while (i < n)
     {
-        usleep(495000);
+        usleep(997000);
         int bursttime = threadArray[threadIndex].cpuburst_cycle;
         threadArray[threadIndex].cpuburst[bursttime] = threadArray[threadIndex].cpuburst[bursttime] - 1;
         if (threadArray[threadIndex].cpuburst[bursttime] == 0)
