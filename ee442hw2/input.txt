@@ -1,8 +1,0 @@
-#lines start with # will be ignored. Please type a line for each thread expected input line: 5. Example input format:
-#n cpu1 cpu2 cpu3 io1 io2 io3
-#burst counts should be even number.
-6 2 2 2 4 4 4
-10 2 6 2 4 4 4
-8 2 2 4 4 4 4
-12 4 4 4 4 8 4
-16 10 4 2 4 6 4
