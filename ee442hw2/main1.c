@@ -218,6 +218,7 @@ void printThreadsStatus()
     printf("%s %s %s %s\n", runningStr.string, readyStr.string, finishedStr.string, ioStr.string);
 }
 
+//triggers alarm and calls scheduler and makes context switch
 void runThread()
 {
     //getcontext(&threadArray[0].context);
@@ -248,6 +249,7 @@ void exitThread(int thread_id)
     free(threadArray[thread_id].context.uc_stack.ss_sp);   
 }
 
+//thread function for each thread, counts i until n.
 void thread_func(int n)
 {
     int i = 0;
@@ -286,6 +288,7 @@ void thread_func(int n)
     exitThread(threadIndex);
 }
 
+//handle io work and decrements burst count
 void io_work()
 {
     for (int i = 1; i < 6; i++)
