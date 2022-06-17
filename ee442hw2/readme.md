@@ -1,8 +1,8 @@
-İlk partta lottery scheduling implement edilmiştir.
-İkinci partta ise SRTF_scheduler implement edilmiştir.
+Process schedulling implementation using context switch
 
-gcc -o main1 main1.c
-gcc -o main2 main2.c
+lottery and SRTF_scheduler are implemented. 
 
-Threadlerin burst sayısı ve n inputu input.txt dosyasından verilmelidir. 
-input formatı dosya içerisinde yazmaktadır.
+gcc -o lottery lottery.c
+gcc -o srtf srtf.c
+
+Burst count of the thread should be given from input.txt file Input format is given in the file.
